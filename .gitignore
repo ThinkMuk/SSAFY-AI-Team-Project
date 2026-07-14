@@ -1,0 +1,47 @@
+# =========================
+# LocalHub 공통 (Common)
+# =========================
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# =========================
+# Backend (FastAPI + SQLite)
+# =========================
+# 파이썬 캐시 및 가상환경
+/backend/__pycache__/
+/backend/.pytest_cache/
+/backend/.venv/
+/backend/venv/
+/backend/env/
+*.py[cod]
+*$py.class
+
+# 환경변수 (RULE.md 규칙에 따라 절대 커밋 금지)
+/backend/.env
+
+# 데이터베이스 (SQLite)
+/backend/*.db
+/backend/localhub.db
+/backend/*.sqlite3
+
+# =========================
+# Frontend (Vue.js 3 + Vite)
+# =========================
+# 의존성 및 빌드 결과물
+/frontend/node_modules/
+/frontend/dist/
+/frontend/dist-ssr/
+/frontend/.eslintcache
+
+# 환경변수
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.*.local
+
+# 패키지 매니저 에러 로그
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+/frontend/pnpm-debug.log*
