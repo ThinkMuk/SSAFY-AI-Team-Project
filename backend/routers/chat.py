@@ -50,15 +50,22 @@ def get_chat_summary(
     req: schemas.ChatSummaryRequest,
     db: Session = Depends(get_db)
 ):
+    # 1. 사용자가 간단한 인사나 스몰톡을 건넨 경우 즉시 친절한 안내 응답 반환 (데이터 유무와 무관)
+    smalltalk_keywords = ["안녕", "반가", "누구", "하이", "hello", "hi", "반갑", "뭐해", "이름이", "소개"]
+    if req.question and any(kw in req.question.lower() for kw in smalltalk_keywords):
+        return schemas.ChatSummaryResponse(
+            summary="안녕하세요! 저는 공공데이터 기반 실시간 커뮤니티 LocalHub의 AI 동향 분석 어시스턴트입니다. 궁금하신 장소의 동향이나 실시간 인파 정보가 있다면 언제든 물어보세요!"
+        )
+
     context_str = get_fallback_context_for_ai(req.place_id, db)
     question_str = f"사용자 질문: {req.question}" if req.question else "전반적인 실시간 동향과 인파/이벤트 이슈를 간결하게 요약해 주세요."
 
     system_prompt = (
         "당신은 공공데이터 기반 실시간 커뮤니티 LocalHub의 AI 동향 분석 어시스턴트입니다.\n"
         "다음 원칙을 지켜서 답변하세요:\n"
-        "1. 실제 제공된 게시글/장소 컨텍스트 데이터에 근거해서만 답변(근거 없는 내용 생성 금지).\n"
-        "2. 답변은 2~3문장 이내로 간결하고 실용적인 톤(우회 추천, 혼잡도 안내 등) 유지.\n"
-        "3. 대상 게시글 데이터가 없거나 0건이면 '아직 데이터가 부족하여 정확한 동향 요약이 어렵습니다.'는 취지로 답변."
+        "1. 사용자가 인사나 일상적인 스몰톡을 건넬 경우, 장소 데이터가 0건이라도 절대 '데이터가 없다'거나 '게시글이 부족하다'는 말을 덧붙이지 말고 친절하게 인사하며 LocalHub AI 어시스턴트로서 무엇을 도와드릴지만 안내하세요.\n"
+        "2. 실시간 동향, 장소 현황, 인파/이벤트 이슈 등 동향 분석 요청인 경우, 실제 제공된 게시글/장소 컨텍스트 데이터에 근거해서만 답변(근거 없는 내용 허위 생성 금지)하고 2~3문장 이내로 실용적인 톤(우회 추천, 혼잡도 안내 등)을 유지하세요.\n"
+        "3. 사용자가 장소 및 동향 요약을 구체적으로 요청했을 때만(스몰톡이나 인사 질문 제외) 대상 게시글 데이터가 전혀 없거나 0건인 경우에 '아직 데이터가 부족하여 정확한 동향 요약이 어렵습니다.'는 취지로 안내하세요."
     )
 
     api_key = os.getenv("OPENAI_API_KEY")

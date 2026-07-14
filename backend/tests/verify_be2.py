@@ -145,6 +145,17 @@ class TestBE2Endpoints(unittest.TestCase):
         data = res.json()
         self.assertIn("summary", data)
 
+    def test_08_chatbot_smalltalk(self):
+        """[BE-08] AI 챗봇 스몰톡/인사 질문 시 '데이터 없음' 거절 대신 친절한 안내 응답 검증"""
+        res = client.post("/api/chatbot/summary", json={
+            "place_id": 1,
+            "question": "안녕? 너는 누구야?"
+        })
+        self.assertEqual(res.status_code, 200)
+        summary = res.json()["summary"]
+        self.assertIn("안녕하세요", summary)
+        self.assertNotIn("데이터가 부족", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
