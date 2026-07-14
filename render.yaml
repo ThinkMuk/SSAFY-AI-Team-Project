@@ -8,6 +8,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.6
+      - key: DATABASE_URL
+        value: sqlite:///./localhub.db
       - key: OPENAI_API_KEY
         sync: false
       - key: FRONTEND_ORIGIN
