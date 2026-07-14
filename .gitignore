@@ -5,6 +5,7 @@
 .vscode/
 .idea/
 *.log
+/venv
 
 # =========================
 # Backend (FastAPI + SQLite)
