@@ -48,3 +48,6 @@
 sigungu_codes_20250805.csv
 .playwright-mcp
 .env
+
+# Notion Export Blocks
+/backend/utils/ExportBlock*/
