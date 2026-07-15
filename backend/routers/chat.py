@@ -44,6 +44,28 @@ def get_fallback_context_for_ai(place_id: int | None, db: Session) -> str:
             post_cnt = db.query(models.Post).filter(models.Post.place_id == pl.id).count()
             context_lines.append(f"- {pl.name}: 게시글 {post_cnt}건")
         return "서울 전역 핫플레이스 현황:\n" + "\n".join(context_lines)
+    
+    # place_id가 None인 경우 (서울 전역 요약 시), DB의 최신 실시간 게시글들을 컨텍스트에 추가 주입합니다.
+    if place_id is None:
+        # 변경점: .all() 대신 .limit() 사용, N+1 방지를 위해 joinedload 사용
+        posts = (
+            db.query(models.Post)
+            .options(joinedload(models.Post.place))
+            .order_by(models.Post.id.desc())
+            .limit(40)  # 최대 40개로 제한하여 서버 메모리와 AI 토큰 보호
+            .all()
+        )
+        post_lines = []
+        for p in posts:
+            # base64 이미지 코드가 있으면 떼어내고 본문 텍스트만 추출
+            clean_content = p.content.split("![")[0].strip()
+            place_name = p.place.name if p.place else "알 수 없음"
+            post_lines.append(f"[{place_name}] {p.title}: {clean_content[:100]}")
+        
+        if post_lines:
+            context_str += "\n\n[실시간 전체 게시글 동향]\n" + "\n".join(post_lines)
+
+    return context_str
 
 
 @router.post("/summary", response_model=schemas.ChatSummaryResponse)
