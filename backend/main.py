@@ -50,6 +50,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Chatbot-Warning"],
 )
 
 # BE 2 담당 라우터 등록

@@ -1,5 +1,6 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from urllib.parse import quote
 from sqlalchemy.orm import Session
 from openai import OpenAI
 
@@ -48,7 +49,8 @@ def get_fallback_context_for_ai(place_id: int | None, db: Session) -> str:
 @router.post("/summary", response_model=schemas.ChatSummaryResponse)
 def get_chat_summary(
     req: schemas.ChatSummaryRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    response: Response = None
 ):
     # 1. 사용자가 간단한 인사나 스몰톡을 건넨 경우 즉시 친절한 안내 응답 반환 (데이터 유무와 무관)
     smalltalk_keywords = ["안녕", "반가", "누구", "하이", "hello", "hi", "반갑", "뭐해", "이름이", "소개"]
@@ -62,6 +64,12 @@ def get_chat_summary(
     if req.question and any(kw in req.question.lower() for kw in guardrail_keywords):
         return schemas.ChatSummaryResponse(
             summary="죄송합니다. 저는 LocalHub의 AI 동향 분석 어시스턴트로서 서울 지역의 실시간 동향 및 핫플레이스 정보 공유 역할만 수행할 수 있습니다. 서비스 범위 내의 질문을 해주시면 감사하겠습니다!"
+        )
+
+    # 3. 최초 진입 시 (place_id가 없고 질문도 없는 경우) 웰컴 인사말 즉시 반환
+    if req.place_id is None and not req.question:
+        return schemas.ChatSummaryResponse(
+            summary="안녕하세요! 저는 공공데이터 기반 실시간 커뮤니티 LocalHub의 AI 동향 분석 어시스턴트입니다. 지도상의 핫플레이스를 선택하시거나 아래 입력창을 통해 실시간 동향에 대해 편하게 물어보세요!"
         )
 
     context_str = get_fallback_context_for_ai(req.place_id, db)
@@ -79,11 +87,12 @@ def get_chat_summary(
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        # API 키 미설정 시 개발 모드 Fallback 응답
+        # API 키 미설정 시 Fallback 응답 + 경고 헤더
+        response.headers["X-Chatbot-Warning"] = quote("OPENAI_API_KEY 환경변수가 설정되지 않았습니다")
         if "아직 등록된 게시글이 없습니다" in context_str or "게시글 0건" in context_str:
             return schemas.ChatSummaryResponse(summary="현재 해당 장소에는 등록된 게시글 데이터가 부족하여 정확한 실시간 동향 요약이 어렵습니다.")
         return schemas.ChatSummaryResponse(
-            summary=f"[개발 모드 요약] {context_str[:150]}... 실시간 동향을 파악하여 안전하게 이동하시기 바랍니다."
+            summary=f"{context_str[:150]}... 실시간 동향을 파악하여 안전하게 이동하시기 바랍니다."
         )
 
     try:
@@ -100,11 +109,15 @@ def get_chat_summary(
             kwargs["max_tokens"] = 200
             kwargs["temperature"] = 0.5
 
-        response = client.chat.completions.create(**kwargs)
-        summary_text = response.choices[0].message.content.strip()
+        ai_response = client.chat.completions.create(**kwargs)
+        summary_text = ai_response.choices[0].message.content.strip()
         return schemas.ChatSummaryResponse(summary=summary_text)
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"OpenAI 챗봇 요약 생성 중 오류가 발생했습니다: {str(e)}"
+        # OpenAI API 호출 실패 시 Fallback 응답으로 우회 + 경고 헤더
+        print(f"[Warning] OpenAI API 호출 오류 발생: {e}. 개발 모드 Fallback 응답으로 대체합니다.")
+        response.headers["X-Chatbot-Warning"] = quote(f"OpenAI API Error: {str(e)}")
+        if "아직 등록된 게시글이 없습니다" in context_str or "게시글 0건" in context_str:
+            return schemas.ChatSummaryResponse(summary="현재 해당 장소에는 등록된 게시글 데이터가 부족하여 정확한 실시간 동향 요약이 어렵습니다.")
+        return schemas.ChatSummaryResponse(
+            summary=f"{context_str[:150]}... 실시간 동향을 파악하여 안전하게 이동하시기 바랍니다."
         )
