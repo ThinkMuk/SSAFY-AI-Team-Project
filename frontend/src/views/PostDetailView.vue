@@ -1,6 +1,8 @@
 <script setup>
-import { ref, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 import PasswordModal from "../components/PasswordModal.vue";
 import { fetchPost, deletePost } from "../api/posts";
 import { formatRelativeTime } from "../utils/datetime";
@@ -16,6 +18,11 @@ const post = ref(null);
 const loading = ref(false);
 const error = ref("");
 const notFound = ref(false);
+
+const renderedContent = computed(() => {
+  if (!post.value?.content) return "";
+  return DOMPurify.sanitize(marked.parse(post.value.content));
+});
 
 const deleteModalOpen = ref(false);
 const deleting = ref(false);
@@ -119,7 +126,7 @@ watch(
           <p class="detail__meta text-body-small">
             {{ post.nickname }} · {{ formatRelativeTime(post.created_at) }}
           </p>
-          <div class="detail__content">{{ post.content }}</div>
+          <div class="detail__content markdown-body" v-html="renderedContent"></div>
         </article>
 
         <div class="detail__actions">

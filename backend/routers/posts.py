@@ -40,7 +40,7 @@ def list_posts(
 
     query = db.query(models.Post).filter(models.Post.place_id == place_id)
     total = query.count()
-    items = query.order_by(models.Post.id.desc()).offset((page - 1) * size).limit(size).all()
+    items = query.order_by(models.Post.created_at.desc(), models.Post.id.desc()).offset((page - 1) * size).limit(size).all()
 
     return schemas.PaginatedPosts(
         items=items,
